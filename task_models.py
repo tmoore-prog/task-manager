@@ -16,8 +16,8 @@ class TaskSchema(ma.SQLAlchemyAutoSchema):
     name = String(required=True, validate=validate.Length(min=2))
     priority = String(validate=validate.OneOf(['High', 'Medium', 'Low']))
     due_date = DateTime(validate=validate.Range(min=datetime.now()))
-    status = String(validate=validate.OneOf(['Done', 'In Progress',
-                                            'Planned']))
+    status = String(validate=validate.OneOf(['Completed', 'In Progress',
+                                            'Pending']))
 
     class Meta:
         model = Task

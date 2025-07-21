@@ -2,13 +2,68 @@ from flask import jsonify, request, abort
 from config import create_app, db
 from task_models import Task, task_schema, tasks_schema
 from marshmallow import ValidationError
+from datetime import datetime
+from sqlalchemy import case
 
 app = create_app()
 
 
 @app.route("/api/tasks", methods=["GET"])
 def get_tasks():
-    tasks = Task.query.all()
+    query = Task.query
+
+    search_term = request.args.get("search")
+    if search_term:
+        query = query.filter(Task.name.contains(search_term))
+
+    priority = request.args.get("priority")
+    if priority:
+        query = query.filter(Task.priority == priority)
+
+    due_date = request.args.get("due_date")
+    if due_date:
+        try:
+            parsed_date = datetime.strptime(due_date, "%Y-%m-%d").date()
+
+            if hasattr(Task.due_date.type, 'python_type') and \
+                    Task.due_date.type.python_type == datetime:
+                start_of_day = datetime.combine(parsed_date,
+                                                datetime.min.time())
+                end_of_day = datetime.combine(parsed_date, datetime.max.time())
+                query = query.filter(Task.due_date >= start_of_day,
+                                     Task.due_date <= end_of_day)
+        except ValueError:
+            return jsonify({"error": "invalid date format",
+                            "status": 400}), 400
+
+    status = request.args.get("status")
+    if status:
+        query = query.filter(Task.status == status)
+
+    sort_on = request.args.get("sort")
+    if sort_on and not hasattr(Task, sort_on):
+        return jsonify({"error": "invalid sort field", "status": 400}), 400
+    if sort_on:
+        if sort_on == "priority":
+            priority_case = case(
+                (Task.priority == "Low", 1),
+                (Task.priority == "Medium", 2),
+                (Task.priority == "High", 3),
+                else_=4
+            )
+            query = query.order_by(priority_case)
+        elif sort_on == "status":
+            status_case = case(
+                (Task.status == "Pending", 1),
+                (Task.status == "In Progress", 2),
+                (Task.status == "Completed", 3),
+                else_=4  # fallback for any unexpected values
+            )
+            query = query.order_by(status_case)
+        else:
+            query = query.order_by(getattr(Task, sort_on))
+
+    tasks = query.all()
     if tasks:
         return jsonify(tasks_schema.dump(tasks))
     else:
