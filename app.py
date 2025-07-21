@@ -22,6 +22,9 @@ def add_task():
     except ValidationError as err:
         return jsonify({"error": "Invalid data", "status": 400,
                         "details": err.messages}), 400
+    task = Task.query.filter_by(name=new_task.name).first()
+    if task:
+        return jsonify({"error": "task already exists", "status": 406}), 406
     db.session.add(new_task)
     db.session.commit()
     return jsonify(task_schema.dump(new_task)), 201
