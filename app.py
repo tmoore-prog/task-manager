@@ -1,11 +1,44 @@
-from flask import jsonify, request, abort
+import time
+import uuid
+from flask import jsonify, request, abort, g
 from config import create_app, db
 from task_models import Task, task_schema, tasks_schema
 from marshmallow import ValidationError
 from datetime import datetime
 from sqlalchemy import case
+from task_logging import StructuredLogger
+
+api_logger = StructuredLogger(__name__)
 
 app = create_app()
+
+
+@app.before_request
+def before_request():
+    g.request_id = str(uuid.uuid4())
+    g.start_time = time.time()
+    api_logger.info(
+        "request started",
+        method=request.method,
+        path=request.path,
+        remote_addr=request.remote_addr,
+        user_agent=request.headers.get('User-Agent', ''),
+        content_type=request.content_type
+    )
+
+
+@app.after_request
+def after_request(response):
+    duration = time.time() - g.start_time
+    api_logger.info(
+        "request_completed",
+        method=request.method,
+        path=request.path,
+        status_code=response.status_code,
+        duration_ms=round(duration * 1000, 2),
+        response_size=len(response.get_data())
+    )
+    return response
 
 
 @app.route("/api/tasks", methods=["GET"])
@@ -14,7 +47,7 @@ def get_tasks():
 
     search_term = request.args.get("search")
     if search_term:
-        query = query.filter(Task.name.contains(search_term))
+        query = query.filter(Task.name.ilike(f'%{search_term}%'))
 
     priority = request.args.get("priority")
     if priority:
