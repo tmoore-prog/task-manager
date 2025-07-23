@@ -85,7 +85,7 @@ def after_request(response):
 
 
 @app.route("/api/tasks", methods=["GET"])
-@log_api_action("retrieve_tasks")
+@log_api_action("get_tasks")
 def get_tasks():
     query = Task.query
 
@@ -163,8 +163,9 @@ def add_task():
             "task_validation_failed",
             reason=err.messages
         )
-        return jsonify({"error": "Invalid data", "status": 400,
-                        "details": err.messages}), 400
+        return jsonify({"error": "Invalid data",
+                        "details": err.messages,
+                        "status": 400}), 400
     task = Task.query.filter_by(name=new_task.name).first()
     if task:
         api_logger.error(
