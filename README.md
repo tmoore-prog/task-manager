@@ -16,7 +16,7 @@ To instantiate the database I found running the following commands in an interac
 # Import app and db from app.py
 from app import db, app
 
-# Use app context handler to create database
+# Use app context manager to create database
 with app.app_context():
     db.create_all()
 ```

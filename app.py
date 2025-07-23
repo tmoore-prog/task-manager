@@ -1,7 +1,7 @@
 import time
 import uuid
-from flask import jsonify, request, abort, g
-from config import create_app, db
+from flask import jsonify, request, abort, g, Blueprint
+from config import db
 from task_models import Task, task_schema, tasks_schema
 from marshmallow import ValidationError
 from datetime import datetime
@@ -10,8 +10,7 @@ from task_logging import StructuredLogger
 from functools import wraps
 
 api_logger = StructuredLogger(__name__)
-
-app = create_app()
+api_bp = Blueprint('api', __name__)
 
 
 def log_api_action(action_name):
@@ -56,7 +55,7 @@ def log_api_action(action_name):
     return decorator
 
 
-@app.before_request
+@api_bp.before_request
 def before_request():
     g.request_id = str(uuid.uuid4())
     g.start_time = time.time()
@@ -70,7 +69,7 @@ def before_request():
     )
 
 
-@app.after_request
+@api_bp.after_request
 def after_request(response):
     duration = time.time() - g.start_time
     api_logger.info(
@@ -84,7 +83,7 @@ def after_request(response):
     return response
 
 
-@app.route("/api/tasks", methods=["GET"])
+@api_bp.route("/api/tasks", methods=["GET"])
 @log_api_action("get_tasks")
 def get_tasks():
     query = Task.query
@@ -153,7 +152,7 @@ def get_tasks():
         abort(404)
 
 
-@app.route("/api/tasks", methods=["POST"])
+@api_bp.route("/api/tasks", methods=["POST"])
 @log_api_action("create_task")
 def add_task():
     try:
@@ -178,7 +177,7 @@ def add_task():
     return jsonify(task_schema.dump(new_task)), 201
 
 
-@app.route("/api/tasks/<int:task_id>", methods=["GET"])
+@api_bp.route("/api/tasks/<int:task_id>", methods=["GET"])
 @log_api_action("get_task_by_id")
 def get_task(task_id):
     task = Task.query.get(task_id)
@@ -188,7 +187,7 @@ def get_task(task_id):
         abort(404)
 
 
-@app.route("/api/tasks/<int:task_id>", methods=["PUT"])
+@api_bp.route("/api/tasks/<int:task_id>", methods=["PUT"])
 @log_api_action("update_task")
 def update_task(task_id):
     task_to_update = Task.query.get(task_id)
@@ -207,7 +206,7 @@ def update_task(task_id):
     return jsonify(task_schema.dump(task_to_update)), 200
 
 
-@app.route("/api/tasks/<int:task_id>", methods=['DELETE'])
+@api_bp.route("/api/tasks/<int:task_id>", methods=['DELETE'])
 @log_api_action("delete_task")
 def delete_task(task_id):
     task_to_delete = Task.query.get(task_id)
@@ -218,12 +217,7 @@ def delete_task(task_id):
     return jsonify({"message": "task successfully deleted"}), 200
 
 
-@app.errorhandler(404)
+@api_bp.errorhandler(404)
 def handle_not_found(e):
     api_logger.error("task_not_found",)
     return jsonify({"error": "data not found", "status": 404}), 404
-
-
-if __name__ == "__main__":
-    print("Starting Flask app...")
-    app.run(debug=True, host="127.0.0.1", port=5000)

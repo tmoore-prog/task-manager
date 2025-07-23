@@ -6,12 +6,22 @@ db = SQLAlchemy()
 ma = Marshmallow()
 
 
-def create_app():
+def create_app(config_type='development'):
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///task.db"
+
+    if config_type == 'testing':
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['TESTING'] = True
+
+    else:
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///task.db"
+
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     db.init_app(app)
     ma.init_app(app)
+
+    from app import api_bp
+    app.register_blueprint(api_bp)
 
     return app
