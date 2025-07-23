@@ -109,8 +109,11 @@ def get_tasks():
                 end_of_day = datetime.combine(parsed_date, datetime.max.time())
                 query = query.filter(Task.due_date >= start_of_day,
                                      Task.due_date <= end_of_day)
-        except ValueError:
+        except ValueError as err:
+            api_logger.error("invalid_date_entered",
+                             reason=str(err))
             return jsonify({"error": "invalid date format",
+                            "details": str(err),
                             "status": 400}), 400
 
     status = request.args.get("status")
@@ -119,6 +122,9 @@ def get_tasks():
 
     sort_on = request.args.get("sort")
     if sort_on and not hasattr(Task, sort_on):
+        api_logger.error("invalid_sort_field",
+                         details="sort field needs to be in "
+                         "['name', 'due_date', 'priority', 'status', 'id']")
         return jsonify({"error": "invalid sort field", "status": 400}), 400
     if sort_on:
         if sort_on == "priority":
@@ -190,6 +196,10 @@ def update_task(task_id):
     try:
         task_schema.load(request.get_json(), instance=task_to_update)
     except ValidationError as err:
+        api_logger.error(
+            "task_validation_failed",
+            reason=err.messages
+        )
         return jsonify({"error": "invalid data", "status": 400,
                         "details": err.messages}), 400
     db.session.commit()
@@ -209,7 +219,7 @@ def delete_task(task_id):
 
 @app.errorhandler(404)
 def handle_not_found(e):
-    api_logger.error("task_not_found")
+    api_logger.error("task_not_found",)
     return jsonify({"error": "data not found", "status": 404}), 404
 
 
