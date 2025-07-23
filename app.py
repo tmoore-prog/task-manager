@@ -7,10 +7,53 @@ from marshmallow import ValidationError
 from datetime import datetime
 from sqlalchemy import case
 from task_logging import StructuredLogger
+from functools import wraps
 
 api_logger = StructuredLogger(__name__)
 
 app = create_app()
+
+
+def log_api_action(action_name):
+    # Decorator to log each api action
+    def decorator(f):
+        @wraps(f)
+        def decorated_func(*args, **kwargs):
+            api_logger.info(f"{action_name}_started",
+                            endpoint=request.endpoint,
+                            args=str(args),
+                            kwargs=str(kwargs))
+
+            try:
+                result = f(*args, **kwargs)
+
+                if isinstance(result, tuple) and len(result) == 2:
+                    response, status_code = result
+                    if status_code >= 400:  # HTTP error status
+                        api_logger.info(f"{action_name}_failed",
+                                        endpoint=request.endpoint,
+                                        status_code=status_code)
+                    else:
+                        api_logger.info(f"{action_name}_completed",
+                                        endpoint=request.endpoint,
+                                        success=True)
+                else:
+                    api_logger.info(f"{action_name}_completed",
+                                    endpoint=request.endpoint,
+                                    success=True)
+
+                return result
+
+            except Exception as e:
+                api_logger.error(f"{action_name}_failed",
+                                 endpoint=request.endpoint,
+                                 error_type=type(e).__name__,
+                                 error_message=str(e),
+                                 success=False)
+                raise
+
+        return decorated_func
+    return decorator
 
 
 @app.before_request
@@ -42,6 +85,7 @@ def after_request(response):
 
 
 @app.route("/api/tasks", methods=["GET"])
+@log_api_action("retrieve_tasks")
 def get_tasks():
     query = Task.query
 
@@ -104,14 +148,23 @@ def get_tasks():
 
 
 @app.route("/api/tasks", methods=["POST"])
+@log_api_action("create_task")
 def add_task():
     try:
         new_task = task_schema.load(request.get_json())
     except ValidationError as err:
+        api_logger.error(
+            "task_validation_failed",
+            reason=err.messages
+        )
         return jsonify({"error": "Invalid data", "status": 400,
                         "details": err.messages}), 400
     task = Task.query.filter_by(name=new_task.name).first()
     if task:
+        api_logger.error(
+            "task_creation_failed",
+            reason="task already exists"
+        )
         return jsonify({"error": "task already exists", "status": 406}), 406
     db.session.add(new_task)
     db.session.commit()
@@ -119,6 +172,7 @@ def add_task():
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["GET"])
+@log_api_action("get_task_by_id")
 def get_task(task_id):
     task = Task.query.get(task_id)
     if task:
@@ -128,6 +182,7 @@ def get_task(task_id):
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["PUT"])
+@log_api_action("update_task")
 def update_task(task_id):
     task_to_update = Task.query.get(task_id)
     if not task_to_update:
@@ -142,6 +197,7 @@ def update_task(task_id):
 
 
 @app.route("/api/tasks/<int:task_id>", methods=['DELETE'])
+@log_api_action("delete_task")
 def delete_task(task_id):
     task_to_delete = Task.query.get(task_id)
     if not task_to_delete:
@@ -153,6 +209,7 @@ def delete_task(task_id):
 
 @app.errorhandler(404)
 def handle_not_found(e):
+    api_logger.error("task_not_found")
     return jsonify({"error": "data not found", "status": 404}), 404
 
 
