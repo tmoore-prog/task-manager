@@ -1,6 +1,6 @@
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class StructuredLogger:
@@ -33,7 +33,7 @@ class StructuredLogger:
         '''Build standardized log entry'''
         from flask import g
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + 'Z',
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": level,
             "event": event,
             "request_id": getattr(g, 'request_id', None),
@@ -52,7 +52,7 @@ class JsonFormatter(logging.Formatter):
             return record.getMessage()
         except (json.JSONDecodeError, ValueError):
             log_entry = {
-                "timestamp": datetime.utcnow().isoformat() + 'Z',
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "level": record.levelname,
                 "message": record.getMessage(),
                 "logger": record.name

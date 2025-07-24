@@ -21,7 +21,7 @@ def create_app(config_type='development'):
     db.init_app(app)
     ma.init_app(app)
 
-    from app import api_bp
+    from routes import api_bp
     app.register_blueprint(api_bp)
 
     return app
