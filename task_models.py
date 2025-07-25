@@ -10,6 +10,7 @@ class Task(db.Model):
     priority = db.Column(db.String(20))
     due_date = db.Column(db.DateTime)
     status = db.Column(db.String(20))
+    created_on = db.Column(db.DateTime, default=datetime.now())
 
 
 class TaskSchema(ma.SQLAlchemyAutoSchema):

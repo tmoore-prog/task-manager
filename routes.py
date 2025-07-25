@@ -1,6 +1,6 @@
 import time
 import uuid
-from flask import jsonify, request, abort, g, Blueprint
+from flask import jsonify, request, g, Blueprint
 from config import db
 from task_models import Task, task_schema, tasks_schema
 from marshmallow import ValidationError
@@ -107,7 +107,7 @@ def get_tasks():
                                                 datetime.min.time())
                 end_of_day = datetime.combine(parsed_date, datetime.max.time())
                 query = query.where(Task.due_date >= start_of_day,
-                                     Task.due_date <= end_of_day)
+                                    Task.due_date <= end_of_day)
         except ValueError as err:
             api_logger.error("invalid_date_entered",
                              reason=str(err))
