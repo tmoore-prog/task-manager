@@ -26,7 +26,7 @@ def test_get_empty_tasks(client):
 def test_create_task_success(client):
     data = {
         "name": "Test POST",
-        "due_date": "2025-07-29"
+        "due_on": "2025-07-29"
         }
     response = client.post('/api/tasks', data=json.dumps(data),
                            content_type='application/json')
@@ -39,7 +39,7 @@ def test_create_task_success(client):
 def test_get_task_by_id_success(client):
     data = {
         "name": "Example task",
-        "due_date": "2025-07-29"
+        "due_on": "2025-07-29"
     }
     task = task_schema.load(data)
     db.session.add(task)
@@ -54,7 +54,7 @@ def test_get_task_by_id_success(client):
 def test_update_task_success(client):
     data = {
         "name": "Example task",
-        "due_date": "2025-07-29"
+        "due_on": "2025-07-29"
     }
     task = task_schema.load(data)
     db.session.add(task)
@@ -75,7 +75,7 @@ def test_update_task_success(client):
 def test_task_delete_success(client):
     data = {
         "name": "Example task",
-        "due_date": "2025-07-29"
+        "due_on": "2025-07-29"
     }
     task = task_schema.load(data)
     db.session.add(task)

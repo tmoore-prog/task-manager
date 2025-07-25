@@ -100,14 +100,7 @@ def get_tasks():
     if due_date:
         try:
             parsed_date = datetime.strptime(due_date, "%Y-%m-%d").date()
-
-            if hasattr(Task.due_date.type, 'python_type') and \
-                    Task.due_date.type.python_type == datetime:
-                start_of_day = datetime.combine(parsed_date,
-                                                datetime.min.time())
-                end_of_day = datetime.combine(parsed_date, datetime.max.time())
-                query = query.where(Task.due_date >= start_of_day,
-                                    Task.due_date <= end_of_day)
+            query = query.where(Task.due_date == parsed_date)
         except ValueError as err:
             api_logger.error("invalid_date_entered",
                              reason=str(err))
