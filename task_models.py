@@ -14,12 +14,13 @@ class Task(db.Model):
 
 
 class TaskSchema(ma.SQLAlchemyAutoSchema):
-    name = String(required=True, validate=validate.Length(min=2))
+    name = String(required=True, validate=validate.Length(min=2, max=50))
     priority = String(validate=validate.OneOf(['High', 'Medium', 'Low']),
                       load_default='Medium')
     due_on = Date(validate=validate.Range(min=datetime.now().date()))
     status = String(validate=validate.OneOf(['Completed', 'In Progress',
                                             'Pending']), load_default='Pending')
+    created_on = Date(validate=validate.Equal(datetime.now().date()))
 
     class Meta:
         model = Task

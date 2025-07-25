@@ -8,6 +8,8 @@ from datetime import datetime
 from sqlalchemy import case, select
 from task_logging import StructuredLogger
 from functools import wraps
+from sqlalchemy.exc import SQLAlchemyError
+
 
 api_logger = StructuredLogger(__name__)
 api_bp = Blueprint('api', __name__)
@@ -104,7 +106,7 @@ def get_tasks():
         except ValueError as err:
             api_logger.error("invalid_date_entered",
                              reason=str(err))
-            return jsonify({"error": "invalid date format",
+            return jsonify({"error": "Invalid date format",
                             "details": str(err),
                             "status": 400}), 400
 
@@ -117,7 +119,7 @@ def get_tasks():
         api_logger.error("invalid_sort_field",
                          details="sort field needs to be in "
                          "['name', 'due_date', 'priority', 'status', 'id']")
-        return jsonify({"error": "invalid sort field", "status": 400}), 400
+        return jsonify({"error": "Invalid sort field", "status": 400}), 400
     if sort_on:
         if sort_on == "priority":
             priority_case = case(
@@ -154,24 +156,27 @@ def add_task():
     try:
         new_task = task_schema.load(request.get_json())
     except ValidationError as err:
-        api_logger.error(
-            "task_validation_failed",
-            reason=err.messages
-        )
+        api_logger.error("task_validation_failed",
+                         reason=err.messages)
         return jsonify({"error": "Invalid data",
                         "details": err.messages,
                         "status": 400}), 400
+
     task = db.session.execute(select(Task).where(Task.name ==
                                                  new_task.name)).scalar()
     if task:
-        api_logger.error(
-            "task_creation_failed",
-            reason="task already exists"
-        )
-        return jsonify({"error": "task already exists", "status": 406}), 406
-    db.session.add(new_task)
-    db.session.commit()
-    return jsonify(task_schema.dump(new_task)), 201
+        api_logger.error("task_creation_failed",
+                         reason="task already exists")
+        return jsonify({"error": "Task already exists", "status": 406}), 406
+
+    try:
+        db.session.add(new_task)
+        db.session.commit()
+        return jsonify(task_schema.dump(new_task)), 201
+    except SQLAlchemyError as err:
+        db.session.rollback()
+        api_logger.error("database_error", error=str(err))
+        return jsonify({"error": "Database error", "status": 500}), 500
 
 
 @api_bp.route("/api/tasks/<int:task_id>", methods=["GET"])
@@ -191,9 +196,12 @@ def update_task(task_id):
     task_to_update = db.session.get(Task, task_id)
     if not task_to_update:
         api_logger.error("task_not_found",)
-        return jsonify({"error": "data not found", "status": 404}), 404
+        return jsonify({"error": "Data not found", "status": 404}), 404
     try:
         task_schema.load(request.get_json(), instance=task_to_update)
+        db.session.commit()
+        return jsonify(task_schema.dump(task_to_update)), 200
+
     except ValidationError as err:
         api_logger.error(
             "task_validation_failed",
@@ -201,8 +209,11 @@ def update_task(task_id):
         )
         return jsonify({"error": "invalid data", "status": 400,
                         "details": err.messages}), 400
-    db.session.commit()
-    return jsonify(task_schema.dump(task_to_update)), 200
+
+    except SQLAlchemyError as err:
+        db.session.rollback()
+        api_logger.error("database_error", error=str(err))
+        return jsonify({"error": "Database error", "status": 500}), 500
 
 
 @api_bp.route("/api/tasks/<int:task_id>", methods=['DELETE'])
@@ -212,6 +223,13 @@ def delete_task(task_id):
     if not task_to_delete:
         api_logger.error("task_not_found",)
         return jsonify({"error": "data not found", "status": 404}), 404
-    db.session.delete(task_to_delete)
-    db.session.commit()
-    return jsonify({"message": "task successfully deleted"}), 200
+
+    try:
+        db.session.delete(task_to_delete)
+        db.session.commit()
+        return jsonify({"message": "task successfully deleted"}), 200
+
+    except SQLAlchemyError as err:
+        db.session.rollback()
+        api_logger.error("database_error", error=str(err))
+        return jsonify({"error": "Database error", "status": 500}), 500
