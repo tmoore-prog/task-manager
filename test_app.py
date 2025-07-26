@@ -163,7 +163,7 @@ def test_sorting_by_priority(client):
         "due_on": "2026-10-12"
     }, {
         "name": "Medium priority",
-        "priority": "Medium", 
+        "priority": "Medium",
         "due_on": "2025-10-19"
     }]
     for datum in data:

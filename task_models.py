@@ -6,10 +6,10 @@ from datetime import datetime
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
-    priority = db.Column(db.String(20))
-    due_on = db.Column(db.Date)
-    status = db.Column(db.String(20))
+    name = db.Column(db.String(50), index=True)
+    priority = db.Column(db.String(20), index=True)
+    due_on = db.Column(db.Date, index=True)
+    status = db.Column(db.String(20), index=True)
     created_on = db.Column(db.Date, default=datetime.now().date())
 
 
