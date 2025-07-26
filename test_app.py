@@ -241,3 +241,15 @@ def test_update_nonexistent_task(client):
     assert response.status_code == 404
     data = response.get_json()
     assert data['error'] == "Data not found"
+
+
+def test_create_app_development():
+    app = create_app()
+    assert app is not None
+    assert app.config['SQLALCHEMY_DATABASE_URI'] == 'sqlite:///task.db'
+
+
+def test_blueprint_registration():
+    app = create_app('testing')
+    blueprint_names = [bp.name for bp in app.blueprints.values()]
+    assert 'api' in blueprint_names
