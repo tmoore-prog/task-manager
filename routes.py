@@ -98,11 +98,11 @@ def get_tasks():
     if priority:
         query = query.where(Task.priority == priority)
 
-    due_date = request.args.get("due_date")
+    due_date = request.args.get("due_on")
     if due_date:
         try:
             parsed_date = datetime.strptime(due_date, "%Y-%m-%d").date()
-            query = query.where(Task.due_date == parsed_date)
+            query = query.where(Task.due_on == parsed_date)
         except ValueError as err:
             api_logger.error("invalid_date_entered",
                              reason=str(err))
